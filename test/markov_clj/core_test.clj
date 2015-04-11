@@ -2,10 +2,6 @@
   (:require [clojure.test :refer :all]
             [markov-clj.core :refer :all]))
 
-(deftest a-test
-  (testing "FIXME, I fail."
-    (is (= 1 1))))
-
 (deftest test-word-chain
   (testing "it produces a chain of possible bigrams"
     (let [example '(("And" "the" "Golden")
@@ -28,3 +24,28 @@
              ["the" "Golden"] #{"Grouse"}
              ["And" "the"] #{"Pobble" "Golden"}}
              (text-to-bigram example))))))
+
+(deftest test-walk-chain
+  (let [chain {["who" nil] #{}
+             ["Pobble" "who"] #{}
+             ["the" "Pobble"] #{"who"}
+             ["Grouse" "And"] #{"the"}
+             ["Golden" "Grouse"] #{"And"}
+             ["the" "Golden"] #{"Grouse"}
+             ["And" "the"] #{"Pobble" "Golden"}}]
+    (testing "dead end"
+      (let [prefix ["the" "Pobble"]]
+        (is (= ["the" "Pobble" "who"]
+               (walk-chain prefix chain))))
+      (testing "multiple choices"
+        (with-redefs [shuffle (fn [c] c)]
+          (let [prefix ["And" "the"]]
+           (is (= ["And" "the" "Pobble" "who"]
+                  (walk-chain prefix chain)))))
+        (testing "repeating chains"
+          (with-redefs [shuffle (fn [c] (reverse c))]
+                       (let [prefix ["And" "the"]]
+                         (is (> 140
+                                (count (apply str (walk-chain prefix chain)))))
+                         (is (= ["And" "the" "Golden" "Grouse" "And" "the" "Golden" "Grouse"]
+                                (take 8 (walk-chain prefix chain)))))))))))
