@@ -1,5 +1,9 @@
 (ns markov-clj.core)
 
+(def files ["quangle-wangle.txt" "pelican.txt" "pobble.txt"])
+
+(def functional-leary (apply merge-with clojure.set/union (map process-file files)))
+
 (defn word-transitions [words]
   (partition-all 3 1 words))
 
@@ -46,3 +50,7 @@
         result-chain (walk-chain prefix word-chain)
         result-text (chain->text result-chain)]
     result-text))
+
+(defn process-file [fname]
+  (text-to-bigram
+    (slurp (clojure.string/join ["resources/" fname]))))
