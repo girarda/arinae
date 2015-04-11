@@ -49,3 +49,15 @@
                                 (count (apply str (walk-chain prefix chain)))))
                          (is (= ["And" "the" "Golden" "Grouse" "And" "the" "Golden" "Grouse"]
                                 (take 8 (walk-chain prefix chain)))))))))))
+
+(deftest test-generate-text
+  (with-redefs [shuffle (fn [c] c)]
+    (let [chain {["who" nil] #{}
+               ["Pobble" "who"] #{}
+               ["the" "Pobble"] #{"who"}
+               ["Grouse" "And"] #{"the"}
+               ["Golden" "Grouse"] #{"And"}
+               ["the" "Golden"] #{"Grouse"}
+               ["And" "the"] #{"Pobble" "Golden"}}]
+      (is (= "the Pobble who" (generate-text "the Pobble" chain)))
+      (is (= "And the Pobble who" (generate-text "And the" chain))))))

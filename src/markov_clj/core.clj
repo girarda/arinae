@@ -10,9 +10,10 @@
                           {[a b] (if c #{c} #{})})))
            {} word-transitions))
 
+(defn words [s]
+  (clojure.string/split s #"\s+"))
+
 (defn text-to-bigram [text]
-  (defn words [s]
-    (clojure.string/split s #"\s+"))
   (word-chain (word-transitions (words text))))
 
 (defn chain->text [chain]
@@ -40,3 +41,8 @@
 (defn walk-chain [prefix chain]
   (walk-chain-recurs prefix chain prefix))
 
+(defn generate-text [start-phrase word-chain]
+  (let [prefix (words start-phrase)
+        result-chain (walk-chain prefix word-chain)
+        result-text (chain->text result-chain)]
+    result-text))
