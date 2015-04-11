@@ -91,10 +91,10 @@
 
 (defn count-suffix-frequency [transitions]
   (map (fn [transition]
-         (let [bigram (take 2 (first transition))
-              suffix (drop 2 (first transition))
-              count (last transition)]
-              [bigram [{suffix count}]])) transitions))
+         (let [r (reverse transition)
+               [c [a b suffix]] r
+               bigram [a b]]
+              [bigram (if (nil? suffix) [] [{suffix c}])])) transitions))
 
 (defn merge-bigram-suffixes [bigrams]
   (reduce #(assoc %1 (first %2)
