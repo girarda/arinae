@@ -1,9 +1,5 @@
 (ns markov-clj.core)
 
-(def files ["quangle-wangle.txt" "pelican.txt" "pobble.txt"])
-
-(def functional-leary (apply merge-with clojure.set/union (map process-file files)))
-
 (defn word-transitions [words]
   (partition-all 3 1 words))
 
@@ -14,11 +10,11 @@
                           {[a b] (if c #{c} #{})})))
            {} word-transitions))
 
-(defn words [s]
+(defn str->words [s]
   (clojure.string/split s #"\s+"))
 
-(defn text-to-bigram [text]
-  (word-chain (word-transitions (words text))))
+(defn text->chain [text]
+  (word-chain (word-transitions (str->words text))))
 
 (defn chain->text [chain]
   (apply str (interpose " " chain)))
@@ -46,11 +42,64 @@
   (walk-chain-recurs prefix chain prefix))
 
 (defn generate-text [start-phrase word-chain]
-  (let [prefix (words start-phrase)
+  (let [prefix (str->words start-phrase)
         result-chain (walk-chain prefix word-chain)
         result-text (chain->text result-chain)]
     result-text))
 
 (defn process-file [fname]
-  (text-to-bigram
+  (text->chain
     (slurp (clojure.string/join ["resources/" fname]))))
+
+(def files ["quangle-wangle.txt" "pelican.txt" "pobble.txt"])
+
+(def functional-leary (apply merge-with clojure.set/union (map process-file files)))
+
+; Prefix list to sound like Edward
+(def prefix-list ["On the" "They went" "And all" "We think"
+                  "For every" "No other" "To a" "And every"
+                  "We, too," "For his" "And the" "But the"
+                  "Are the" "The Pobble" "For the" "When we"
+                  "In the" "Yet we" "With only" "Are the"
+                  "Though the"  "And when"
+                  "We sit" "And this" "No other" "With a"
+                  "And at" "What a" "Of the"
+                  "O please" "So that" "And all" "When they"
+                  "But before" "Whoso had" "And nobody" "And it's"
+                  "For any" "For example," "Also in" "In contrast"])
+
+(defn end-at-last-punctuation [text]
+  (let [trimmed-to-last-punct (apply str (re-seq #"[\s\w]+[^.!?,]*[.!?,]" text))
+        trimmed-to-last-word (apply str (re-seq #".*[^a-zA-Z]+" text))
+        result-text (if (empty? trimmed-to-last-punct)
+                      trimmed-to-last-word
+                      trimmed-to-last-punct)
+        cleaned-text (clojure.string/replace result-text #"[,| ]$" ".")]
+    (clojure.string/replace cleaned-text "\"" "'")))
+
+(defn tweet-text []
+  (let [text (generate-text (first (shuffle prefix-list)) functional-leary)]
+    (end-at-last-punctuation text)))
+
+(defn lexicon [text]
+  (set (str->words text)))
+
+(defn count-transitions [word-chains]
+  (reduce #(assoc %1 %2
+             (inc (%1 %2 0)))
+          {} word-chains))
+
+(defn count-suffix-frequency [transitions]
+  (map (fn [transition]
+         (let [bigram (take 2 (first transition))
+              suffix (drop 2 (first transition))
+              count (last transition)]
+              [bigram [{suffix count}]])) transitions))
+
+(defn merge-bigram-suffixes [bigrams]
+  (reduce #(assoc %1 (first %2)
+             (concat (last %2) (get %1 (first %2))))
+          {} bigrams))
+
+(defn generate-bigrams [text]
+  (merge-bigram-suffixes (count-suffix-frequency (count-transitions (word-transitions (str->words text))))))

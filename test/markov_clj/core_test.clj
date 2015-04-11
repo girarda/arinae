@@ -23,7 +23,7 @@
              ["Golden" "Grouse"] #{"And"}
              ["the" "Golden"] #{"Grouse"}
              ["And" "the"] #{"Pobble" "Golden"}}
-             (text-to-bigram example))))))
+             (text->chain example))))))
 
 (deftest test-walk-chain
   (let [chain {["who" nil] #{}
@@ -61,3 +61,17 @@
                ["And" "the"] #{"Pobble" "Golden"}}]
       (is (= "the Pobble who" (generate-text "the Pobble" chain)))
       (is (= "And the Pobble who" (generate-text "And the" chain))))))
+
+(deftest test-end-at-last-punctuation
+  (testing "Ends at the last punctuation"
+    (is (= "In a tree so happy are we."
+           (end-at-last-punctuation "In a tree so happy are we. So that")))
+    (testing "Replaces ending comma with a period"
+      (is (= "In a tree so happy are we."
+             (end-at-last-punctuation "In a tree so happy are we, so that"))))
+      (testing "If there are no previous punctuations, remove last word and add one at the end"
+        (is (= "In the light of the blue moon."
+               (end-at-last-punctuation "In the light of the blue moon there"))))
+      (testing "works with multiple punctuations"
+        (is (= "In the light of the blue moon. We danced merrily."
+               (end-at-last-punctuation "In the light of the blue moon. We danced merrily. Be"))))))
