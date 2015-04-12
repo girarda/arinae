@@ -1,5 +1,6 @@
 (ns markov-clj.core
-  (:require [twitter.api.restful :as twitter]
+  (:require [overtone.at-at :as overtone]
+            [twitter.api.restful :as twitter]
             [twitter.oauth :as  twitter-oauth]
             [environ.core :refer [env]]))
 
@@ -131,3 +132,11 @@
       (try (twitter/statuses-update :oauth-creds my-creds
                                     :params {:status tweet})
         (catch Exception e (println "Oh no! " (.getMessage e)))))))
+
+(def my-pool (overtone/mk-pool))
+
+(defn -main [& args]
+  ;; every 8 hours
+  (println "Started up")
+  (println (tweet-text))
+  (overtone/every (* 1000 60 60 8) #(println (status-update)) my-pool))
