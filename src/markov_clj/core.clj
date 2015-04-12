@@ -1,4 +1,7 @@
-(ns markov-clj.core)
+(ns markov-clj.core
+  (:require [twitter.api.restful :as twitter]
+            [twitter.oauth :as  twitter-oauth]
+            [environ.core :refer [env]]))
 
 (defn word-transitions [words]
   (partition-all 3 1 words))
@@ -114,3 +117,17 @@
 (defn tweet-text []
   (let [text (generate-text (first (shuffle prefix-list)) functional-leary)]
     (end-at-last-punctuation text)))
+
+(def my-creds (twitter-oauth/make-oauth-creds (env :app-consumer-key)
+                                               (env :app-consumer-secret)
+                                               (env :user-access-token)
+                                               (env :user-access-secret)))
+
+(defn status-update []
+  (let [tweet (tweet-text)]
+    (println "generated tweet is: " tweet)
+    (println "char count is: " (count tweet))
+    (when (not-empty tweet)
+      (try (twitter/statuses-update :oauth-creds my-creds
+                                    :params {:status tweet})
+        (catch Exception e (println "Oh no! " (.getMessage e)))))))
