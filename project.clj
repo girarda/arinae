@@ -6,7 +6,8 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [overtone/at-at "1.2.0"]
                  [twitter-api "0.7.8"]
-                 [environ "1.0.0"]]
+                 [environ "1.0.0"]
+                 [enlive "1.0.0"]]
   :main markov-clj.core
   :min-lein-version "2.0.0"
   :plugins [[lein-environ "1.0.0"]]

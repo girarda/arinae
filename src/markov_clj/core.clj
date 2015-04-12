@@ -1,5 +1,6 @@
 (ns markov-clj.core
-  (:require [overtone.at-at :as overtone]
+  (:require [net.cgrand.enlive-html :as html]
+            [overtone.at-at :as overtone]
             [twitter.api.restful :as twitter]
             [twitter.oauth :as  twitter-oauth]
             [environ.core :refer [env]]))
@@ -91,20 +92,41 @@
 
 (def files ["quangle-wangle.txt" "pelican.txt" "pobble.txt"])
 
+(defn extract-content [m]
+  (first (get m :content)))
+
+(defn get-all-keys [map1 map2]
+  (distinct (concat (keys map1) (keys map2))))
+
+(defn merge-bigram [bigram chain1 chain2] [bigram (apply merge-with + [(get chain1 bigram) (get chain2 bigram)])])
+
+(defn merge-bigrams-into-vector [chain1 chain2] (map (fn [k] (merge-bigram k chain1 chain2)) (get-all-keys chain1 chain2)))
+
+(defn merge-bigrams [chain1 chain2] (foo (merge-bigrams-into-vector chain1 chain2)))
+
+(defn fetch-url [url]
+  (html/html-resource (java.net.URL. url)))
+
+(defn get-sonnet [number]
+  (clojure.string/lower-case (clojure.string/join "\n" (filter identity (map extract-content (get (nth (get (nth (get (nth (get (second (get (nth (get (first (fetch-url (str "http://shakespeares-sonnets.com/sonnet/" number))) :content) 3) :content)) :content) 5) :content) 1) :content) 3) :content))))))
+
+(defn get-bigrams-from-sonnets-range [a b]
+  (reduce merge-bigrams (map text->chain (map (fn [x] (get-sonnet x)) (range a b)))))
+
 (def functional-leary (apply merge-with clojure.set/union (map process-file files)))
 
-; Prefix list to sound like Edward
-(def prefix-list ["On the" "They went" "And all" "We think"
-                  "For every" "No other" "To a" "And every"
-                  "We, too," "For his" "And the" "But the"
-                  "Are the" "The Pobble" "For the" "When we"
-                  "In the" "Yet we" "With only" "Are the"
-                  "Though the"  "And when"
-                  "We sit" "And this" "No other" "With a"
-                  "And at" "What a" "Of the"
-                  "O please" "So that" "And all" "When they"
-                  "But before" "Whoso had" "And nobody" "And it's"
-                  "For any" "For example," "Also in" "In contrast"])
+; Prefix list to sound like Shakespeare
+(def prefix-list ["from fairest" "when forty" "look in" "upon thy"
+                  "the lovely" "then were" "to a" "when I"
+                  "then of," "when in" "and look" "to the"
+                  "but I" "the Pobble" "for the" "when we"
+                  "in the" "my love" "how can" "when love"
+                  "i have"  "when you"
+                  "if my" "but all" "in the" "with a"
+                  "not mine" "what a" "if thy"
+                  "o please" "those lips" "i do" "when my"
+                  "how can" "that thou" "and yet" "so now"
+                  "when in" "your love," "take all" "that you"])
 
 (defn end-at-last-punctuation [text]
   (let [trimmed-to-last-punct (apply str (re-seq #"[\s\w]+[^.!?,]*[.!?,]" text))
@@ -115,8 +137,8 @@
         cleaned-text (clojure.string/replace result-text #"[,| ]$" ".")]
     (clojure.string/replace cleaned-text "\"" "'")))
 
-(defn tweet-text []
-  (let [text (generate-text (first (shuffle prefix-list)) functional-leary)]
+(defn tweet-text [bigrams]
+  (let [text (generate-text (first (shuffle prefix-list)) bigrams)]
     (end-at-last-punctuation text)))
 
 (def my-creds (twitter-oauth/make-oauth-creds (env :app-consumer-key)
@@ -124,8 +146,8 @@
                                                (env :user-access-token)
                                                (env :user-access-secret)))
 
-(defn status-update []
-  (let [tweet (tweet-text)]
+(defn status-update [bigrams]
+  (let [tweet (tweet-text bigrams)]
     (println "generated tweet is: " tweet)
     (println "char count is: " (count tweet))
     (when (not-empty tweet)
@@ -138,5 +160,6 @@
 (defn -main [& args]
   ;; every 8 hours
   (println "Started up")
-  (println (tweet-text))
-  (overtone/every (* 1000 60 60 8) #(println (status-update)) my-pool))
+  (def bigrams (get-bigrams-from-sonnets-range 1 51))
+  (println (tweet-text bigrams))
+  (overtone/every (* 1000 60 60 8) #(println (status-update bigrams)) my-pool))
