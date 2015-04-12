@@ -16,34 +16,34 @@
 (deftest test-text-to-word-chain
   (testing "it produces a chain of possible bigrams from text"
     (let [example "And the Golden Grouse\nAnd the Pobble who"]
-     (is (= {["who" nil] #{}
-             ["Pobble" "who"] #{}
-             ["the" "Pobble"] #{"who"}
-             ["Grouse" "And"] #{"the"}
-             ["Golden" "Grouse"] #{"And"}
-             ["the" "Golden"] #{"Grouse"}
-             ["And" "the"] #{"Pobble" "Golden"}}
+     (is (= {["who" nil] {}
+             ["Pobble" "who"] {}
+             ["the" "Pobble"] {"who" 1}
+             ["Grouse" "And"] {"the" 1}
+             ["Golden" "Grouse"] {"And" 1}
+             ["the" "Golden"] {"Grouse" 1}
+             ["And" "the"] {"Pobble" 1 "Golden" 1}}
              (text->chain example))))))
 
 (deftest test-walk-chain
-  (let [chain {["who" nil] #{}
-             ["Pobble" "who"] #{}
-             ["the" "Pobble"] #{"who"}
-             ["Grouse" "And"] #{"the"}
-             ["Golden" "Grouse"] #{"And"}
-             ["the" "Golden"] #{"Grouse"}
-             ["And" "the"] #{"Pobble" "Golden"}}]
+  (let [chain {["who" nil] {}
+             ["Pobble" "who"] {}
+             ["the" "Pobble"] {"who" 1}
+             ["Grouse" "And"] {"the" 1}
+             ["Golden" "Grouse"] {"And" 1}
+             ["the" "Golden"] {"Grouse" 1}
+             ["And" "the"] {"Pobble" 1 "Golden" 1}}]
     (testing "dead end"
       (let [prefix ["the" "Pobble"]]
         (is (= ["the" "Pobble" "who"]
                (walk-chain prefix chain))))
       (testing "multiple choices"
-        (with-redefs [shuffle (fn [c] c)]
+        (with-redefs [weighted-random-choice (fn [c] (first (keys c)))]
           (let [prefix ["And" "the"]]
            (is (= ["And" "the" "Pobble" "who"]
                   (walk-chain prefix chain)))))
         (testing "repeating chains"
-          (with-redefs [shuffle (fn [c] (reverse c))]
+          (with-redefs [weighted-random-choice (fn [c] (last (keys c)))]
                        (let [prefix ["And" "the"]]
                          (is (> 140
                                 (count (apply str (walk-chain prefix chain)))))
@@ -51,14 +51,14 @@
                                 (take 8 (walk-chain prefix chain)))))))))))
 
 (deftest test-generate-text
-  (with-redefs [shuffle (fn [c] c)]
-    (let [chain {["who" nil] #{}
-               ["Pobble" "who"] #{}
-               ["the" "Pobble"] #{"who"}
-               ["Grouse" "And"] #{"the"}
-               ["Golden" "Grouse"] #{"And"}
-               ["the" "Golden"] #{"Grouse"}
-               ["And" "the"] #{"Pobble" "Golden"}}]
+  (with-redefs [weighted-random-choice (fn [c] (first (keys c)))]
+    (let [chain {["who" nil] {}
+             ["Pobble" "who"] {}
+             ["the" "Pobble"] {"who" 1}
+             ["Grouse" "And"] {"the" 1}
+             ["Golden" "Grouse"] {"And" 1}
+             ["the" "Golden"] {"Grouse" 1}
+             ["And" "the"] {"Pobble" 1 "Golden" 1}}]
       (is (= "the Pobble who" (generate-text "the Pobble" chain)))
       (is (= "And the Pobble who" (generate-text "And the" chain))))))
 

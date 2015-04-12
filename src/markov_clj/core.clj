@@ -13,8 +13,42 @@
 (defn str->words [s]
   (clojure.string/split s #"\s+"))
 
+(defn weighted-random-choice [m]
+  (let [w (reductions #(+ % %2) (vals m))
+        r (rand-int (last w))]
+    (nth (keys m) (count (take-while #( <= % r) w)))))
+
+(defn lexicon [text]
+  (set (str->words text)))
+
+;;;
+;;;
+;;; Please Alex, clean these 5 functions :(
+;;;
+;;;
+
+(defn count-transitions [word-chains]
+  (reduce #(assoc %1 %2
+             (inc (%1 %2 0)))
+          {} word-chains))
+
+(defn count-suffix-frequency [transitions]
+  (map (fn [transition]
+         (let [r (reverse transition)
+               [c [a b suffix]] r
+               bigram [a b]]
+              [bigram (if (nil? suffix) [] [{suffix c}])])) transitions))
+
+(defn merge-bigram-suffixes [bigrams]
+  (reduce #(assoc %1 (first %2)
+             (concat (last %2) (get %1 (first %2))))
+          {} bigrams))
+
+(defn foo [bigrams]
+  (into {} (map (fn [m] (let [[prefix suffixes] m] {prefix (into {} suffixes)})) bigrams)))
+
 (defn text->chain [text]
-  (word-chain (word-transitions (str->words text))))
+  (foo (merge-bigram-suffixes (count-suffix-frequency (count-transitions (word-transitions (str->words text)))))))
 
 (defn chain->text [chain]
   (apply str (interpose " " chain)))
@@ -28,7 +62,7 @@
   (let [suffixes (get chain prefix)]
     (if (empty? suffixes)
       result
-      (let [suffix (first (shuffle suffixes))
+      (let [suffix (weighted-random-choice suffixes)
             new-prefix [(last prefix) suffix]
             result-with-spaces (chain->text result)
             result-char-count (count result-with-spaces)
@@ -80,26 +114,3 @@
 (defn tweet-text []
   (let [text (generate-text (first (shuffle prefix-list)) functional-leary)]
     (end-at-last-punctuation text)))
-
-(defn lexicon [text]
-  (set (str->words text)))
-
-(defn count-transitions [word-chains]
-  (reduce #(assoc %1 %2
-             (inc (%1 %2 0)))
-          {} word-chains))
-
-(defn count-suffix-frequency [transitions]
-  (map (fn [transition]
-         (let [r (reverse transition)
-               [c [a b suffix]] r
-               bigram [a b]]
-              [bigram (if (nil? suffix) [] [{suffix c}])])) transitions))
-
-(defn merge-bigram-suffixes [bigrams]
-  (reduce #(assoc %1 (first %2)
-             (concat (last %2) (get %1 (first %2))))
-          {} bigrams))
-
-(defn generate-bigrams [text]
-  (merge-bigram-suffixes (count-suffix-frequency (count-transitions (word-transitions (str->words text))))))
