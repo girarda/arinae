@@ -1,9 +1,8 @@
 (ns markov-clj.core
   (:require [net.cgrand.enlive-html :as html]
             [overtone.at-at :as overtone]
-            [twitter.api.restful :as twitter]
-            [twitter.oauth :as  twitter-oauth]
-            [environ.core :refer [env]]))
+            [markov-clj.shakespeare-crawler :as shake]
+            [markov-clj.twitter-facade :as twitface]))
 
 (defn word-transitions [words]
   (partition-all 3 1 words))
@@ -92,9 +91,6 @@
 
 (def files ["quangle-wangle.txt" "pelican.txt" "pobble.txt"])
 
-(defn extract-content [m]
-  (first (get m :content)))
-
 (defn get-all-keys [map1 map2]
   (distinct (concat (keys map1) (keys map2))))
 
@@ -104,29 +100,13 @@
 
 (defn merge-bigrams [chain1 chain2] (foo (merge-bigrams-into-vector chain1 chain2)))
 
-(defn fetch-url [url]
-  (html/html-resource (java.net.URL. url)))
-
-(defn get-sonnet [number]
-  (clojure.string/lower-case (clojure.string/join "\n" (filter identity (map extract-content (get (nth (get (nth (get (nth (get (second (get (nth (get (first (fetch-url (str "http://shakespeares-sonnets.com/sonnet/" number))) :content) 3) :content)) :content) 5) :content) 1) :content) 3) :content))))))
+(defn get-bigrams-from-corpus [corpus]
+  (reduce merge-bigrams (map text->chain corpus)))
 
 (defn get-bigrams-from-sonnets-range [a b]
-  (reduce merge-bigrams (map text->chain (map (fn [x] (get-sonnet x)) (range a b)))))
+  (get-bigrams-from-corpus (shake/get-sonnets-from-range a b)))
 
 (def functional-leary (apply merge-with clojure.set/union (map process-file files)))
-
-; Prefix list to sound like Shakespeare
-(def prefix-list ["from fairest" "when forty" "look in" "upon thy"
-                  "the lovely" "then were" "to a" "when I"
-                  "then of," "when in" "and look" "to the"
-                  "but I" "the Pobble" "for the" "when we"
-                  "in the" "my love" "how can" "when love"
-                  "i have"  "when you"
-                  "if my" "but all" "in the" "with a"
-                  "not mine" "what a" "if thy"
-                  "o please" "those lips" "i do" "when my"
-                  "how can" "that thou" "and yet" "so now"
-                  "when in" "your love," "take all" "that you"])
 
 (defn end-at-last-punctuation [text]
   (let [trimmed-to-last-punct (apply str (re-seq #"[\s\w]+[^.!?,]*[.!?,]" text))
@@ -137,23 +117,17 @@
         cleaned-text (clojure.string/replace result-text #"[,| ]$" ".")]
     (clojure.string/replace cleaned-text "\"" "'")))
 
-(defn tweet-text [bigrams]
-  (let [text (generate-text (first (shuffle prefix-list)) bigrams)]
+(defn generate-tweet [bigrams]
+  (defn choose-starting-bigram [bigrams]
+    (clojure.string/join " " (first (shuffle (keys bigrams)))))
+  (let [text (generate-text (choose-starting-bigram bigrams) bigrams)]
     (end-at-last-punctuation text)))
 
-(def my-creds (twitter-oauth/make-oauth-creds (env :app-consumer-key)
-                                               (env :app-consumer-secret)
-                                               (env :user-access-token)
-                                               (env :user-access-secret)))
-
-(defn status-update [bigrams]
-  (let [tweet (tweet-text bigrams)]
+(defn send-tweet [bigrams]
+  (let [tweet (generate-tweet bigrams)]
     (println "generated tweet is: " tweet)
     (println "char count is: " (count tweet))
-    (when (not-empty tweet)
-      (try (twitter/statuses-update :oauth-creds my-creds
-                                    :params {:status tweet})
-        (catch Exception e (println "Oh no! " (.getMessage e)))))))
+    (twitface/status-update tweet)))
 
 (def my-pool (overtone/mk-pool))
 
@@ -161,5 +135,5 @@
   ;; every 8 hours
   (println "Started up")
   (def bigrams (get-bigrams-from-sonnets-range 1 51))
-  (println (tweet-text bigrams))
-  (overtone/every (* 1000 60 60 8) #(println (status-update bigrams)) my-pool))
+  (println (generate-tweet bigrams))
+  (overtone/every (* 1000 60 60 8) #(println (send-tweet bigrams)) my-pool))

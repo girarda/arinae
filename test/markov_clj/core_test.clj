@@ -2,6 +2,23 @@
   (:require [clojure.test :refer :all]
             [markov-clj.core :refer :all]))
 
+(deftest test-word-transitions
+  (testing "it splits a sequence of words in triplets"
+    (let [example ["this" "is" "an" "example"]
+          triplets '(("this" "is" "an")
+                    ("is" "an" "example")
+                    ("an" "example")
+                    ("example"))]
+      (is (= (word-transitions example)
+             triplets)))))
+
+(deftest test-str->words
+  (testing "it splits a string into a sequence of words"
+    (let [example "this is an example"
+          words '("this" "is" "an" "example")]
+      (is (= (str->words example)
+             words)))))
+
 (deftest test-word-chain
   (testing "it produces a chain of possible bigrams"
     (let [example '(("And" "the" "Golden")
@@ -24,6 +41,26 @@
              ["the" "Golden"] {"Grouse" 1}
              ["And" "the"] {"Pobble" 1 "Golden" 1}}
              (text->chain example))))))
+
+(deftest test-get-bigrams-from-multiple-strings
+  (testing "it produces a bigram from the multiple strings"
+    (let [first-string "hello yes this is dog"
+          second-string "hello yes this isnt cat"
+          third-string "hello no this isnt frog"
+          corpus [first-string second-string third-string]
+          merged-bigram {["hello" "yes"] {"this" 2}
+                         ["yes" "this"] {"is" 1 "isnt" 1}
+                         ["this" "is"] {"dog" 1}
+                         ["this" "isnt"] {"cat" 1 "frog" 1}
+                         ["is" "dog"] {}
+                         ["isnt" "cat"] {}
+                         ["dog" nil] {}
+                         ["cat" nil] {}
+                         ["hello" "no"] {"this" 1}
+                         ["no" "this"] {"isnt" 1}
+                         ["isnt" "frog"] {}
+                         ["frog" nil] {}}]
+    (is (= merged-bigram (get-bigrams-from-corpus corpus))))))
 
 (deftest test-walk-chain
   (let [chain {["who" nil] {}
