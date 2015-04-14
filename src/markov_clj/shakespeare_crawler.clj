@@ -11,5 +11,6 @@
 
 (defn get-sonnets-from-range [a b]
   (map (fn [i]
-         (get-sonnet i))
+         (try (get-sonnet i)
+           (catch Exception e (str "caught exception for sonnet" i ": " (.getMessage e)))))
        (range a b)))

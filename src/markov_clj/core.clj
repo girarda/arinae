@@ -134,6 +134,6 @@
 (defn -main [& args]
   ;; every 8 hours
   (println "Started up")
-  (def bigrams (get-bigrams-from-sonnets-range 1 51))
+  (def bigrams (get-bigrams-from-sonnets-range 1 155))
   (println (generate-tweet bigrams))
   (overtone/every (* 1000 60 60 8) #(println (send-tweet bigrams)) my-pool))
