@@ -1,36 +1,9 @@
 (ns markov-clj.core-test
   (:require [clojure.test :refer :all]
-            [markov-clj.core :refer :all]))
+            [markov-clj.core :refer :all]
+            [markov-clj.utils :as utils]))
 
-(deftest test-word-transitions
-  (testing "it splits a sequence of words in triplets"
-    (let [example ["this" "is" "an" "example"]
-          triplets '(("this" "is" "an")
-                    ("is" "an" "example")
-                    ("an" "example")
-                    ("example"))]
-      (is (= (word-transitions example)
-             triplets)))))
-
-(deftest test-str->words
-  (testing "it splits a string into a sequence of words"
-    (let [example "this is an example"
-          words '("this" "is" "an" "example")]
-      (is (= (str->words example)
-             words)))))
-
-(deftest test-word-chain
-  (testing "it produces a chain of possible bigrams"
-    (let [example '(("And" "the" "Golden")
-                    ("the" "Golden" "Grouse")
-                    ("And" "the" "Pobble")
-                    ("the" "Pobble" "who"))]
-      (is (= {["the" "Pobble"] #{"who"}
-              ["the" "Golden"] #{"Grouse"}
-              ["And" "the"] #{"Pobble" "Golden"}}
-             (word-chain example))))))
-
-(deftest test-text-to-word-chain
+(deftest test-text->bigrams
   (testing "it produces a chain of possible bigrams from text"
     (let [example "And the Golden Grouse\nAnd the Pobble who"]
      (is (= {["who" nil] {}
@@ -40,9 +13,9 @@
              ["Golden" "Grouse"] {"And" 1}
              ["the" "Golden"] {"Grouse" 1}
              ["And" "the"] {"Pobble" 1 "Golden" 1}}
-             (text->chain example))))))
+             (text->bigrams example))))))
 
-(deftest test-get-bigrams-from-multiple-strings
+(deftest test-get-bigrams-from-corpus
   (testing "it produces a bigram from the multiple strings"
     (let [first-string "hello yes this is dog"
           second-string "hello yes this isnt cat"
@@ -75,12 +48,12 @@
         (is (= ["the" "Pobble" "who"]
                (walk-chain prefix chain))))
       (testing "multiple choices"
-        (with-redefs [weighted-random-choice (fn [c] (first (keys c)))]
+        (with-redefs [utils/weighted-random-choice (fn [c] (first (keys c)))]
           (let [prefix ["And" "the"]]
            (is (= ["And" "the" "Pobble" "who"]
                   (walk-chain prefix chain)))))
         (testing "repeating chains"
-          (with-redefs [weighted-random-choice (fn [c] (last (keys c)))]
+          (with-redefs [utils/weighted-random-choice (fn [c] (last (keys c)))]
                        (let [prefix ["And" "the"]]
                          (is (> 140
                                 (count (apply str (walk-chain prefix chain)))))
@@ -88,7 +61,7 @@
                                 (take 8 (walk-chain prefix chain)))))))))))
 
 (deftest test-generate-text
-  (with-redefs [weighted-random-choice (fn [c] (first (keys c)))]
+  (with-redefs [utils/weighted-random-choice (fn [c] (first (keys c)))]
     (let [chain {["who" nil] {}
              ["Pobble" "who"] {}
              ["the" "Pobble"] {"who" 1}
